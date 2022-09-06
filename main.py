@@ -13,12 +13,12 @@ from kivy.core.window import Window
 from kivy.uix.screenmanager import Screen
 from validator import validate
 
+from work.toolbox import clean_space
 from work.validation import UrlRule, PhoneRule
 
 kivy.require('2.1.0')
 
 from kivy.properties import StringProperty
-from kivy.uix.boxlayout import BoxLayout
 from kivy.app import App
 
 from PIL import Image
@@ -26,8 +26,10 @@ import qrcode
 
 Window.size = (800, 480)
 Window.borderless = 1
+
+
 @dataclasses.dataclass
-class UCard():
+class UCard:
     name: str
     surname: str
 
@@ -39,40 +41,43 @@ class UCard():
     url: str = None
     corp: str = None
 
+
+
     @property
     def card_name(self):
+        """Mise en forme identité"""
         if self.name and self.surname.capitalize():
             return self.name.upper() + ',' + self.surname.capitalize()
         else:
             return self.name or self.surname
+    @property
+    def card_phone(self):
+        return list(map(lambda d: clean_space(d), filter(lambda d: d, [self.phone_1, self.phone_1])))
 
     @property
-    def card_data(self):
-
+    def mecard_data(self):
+        """Donnes au foram MeCard"""
         dcm = {
             'email': self.email,
             'nickname': self.corp,
             'url': self.url,
-            'phone': list(filter(lambda d: d, [self.phone_1, self.phone_1])),
+            'phone': self.card_phone,
             'name': self.card_name,
         }
-        return { k:v for (k,v) in dcm.items() if v}
-
+        return {k: v for (k, v) in dcm.items() if v}
 
     @property
-    def card_validation(self):
-
+    def mecard(self):
+        """schement de validation """
         dcm = {
             'email': self.email,
             'url': self.url,
             'phone_1': self.phone_1,
-            'phone_2':  self.phone_2,
+            'phone_2': self.phone_2,
             'name': self.name,
             'surname': self.surname,
         }
-        return { k:v or '' for (k,v) in dcm.items()}
-
-
+        return {k: v or '' for (k, v) in dcm.items()}
 
 
 class QRCoder(Screen):
@@ -88,27 +93,26 @@ class QRCoder(Screen):
     def __vcard(self, **kwargs):
         from segno import helpers
         card = UCard(**kwargs)
-        dcm = card.card_validation
+        dcm = card.mecard
+
         if dcm:
             result, _, errors = validate(dcm, self.card_rules, return_info=True)  # True
 
             if result:
-                qrcode = helpers.make_mecard(**card.card_data)
+                qrcode = helpers.make_mecard(**card.mecard_data)
                 qrcode.save('qrcode_vcard.png', dark='#165868', scale=4)
                 self.tracker = " QR code generated!"
             else:
                 for field, err in errors.items():
-                    self.ids[field].background_color =  (0.5, 0, 0, 0.3)# if self.focus else (0, 0, 1, 1)
+                    self.ids[field].background_color = (0.5, 0, 0, 0.3)  # if self.focus else (0, 0, 1, 1)
                 self.tracker = "Vérifiez le formulaire"
 
         else:
             self.tracker = "Renseignez le formulaire"
 
-
-
-    def __uri(self,url):
-
-        logo_link = 'logo.png'
+    def __uri(self, url):
+        """Generation d'un QRCode pour URL"""
+        logo_link = '.src/logo.png'
         logo = Image.open(logo_link)
 
         basewidth = 100
@@ -133,12 +137,10 @@ class QRCoder(Screen):
         QRcolor = '#165868'
 
         # adding color to QR code
-        QRimg = QRcode.make_image(
-            fill_color=QRcolor, back_color="white").convert('RGB')
+        QRimg = QRcode.make_image(fill_color=QRcolor, back_color="white").convert('RGB')
 
         # set size of QR code
-        pos = ((QRimg.size[0] - logo.size[0]) // 2,
-               (QRimg.size[1] - logo.size[1]) // 2)
+        pos = ((QRimg.size[0] - logo.size[0]) // 2, (QRimg.size[1] - logo.size[1]) // 2)
         QRimg.paste(logo, pos)
 
         # save the QR code generated
@@ -147,8 +149,8 @@ class QRCoder(Screen):
         return True
 
     def reset_form(self):
-        for field in ['name', 'surname', 'email', 'phone_1','phone_2', 'url']:
-            self.ids[field].background_color = (1,1,1,1)
+        for field in ['name', 'surname', 'email', 'phone_1', 'phone_2', 'url']:
+            self.ids[field].background_color = (1, 1, 1, 1)
 
     def generate_vcard(self):
         self.reset_form()
@@ -167,11 +169,15 @@ class QRCoder(Screen):
         gen = False
         url = self.ids.url.text.lower()
         if url:
-            result, _, errors = validate({'url': self.ids.url.text}, self.url_rules, return_info=True) # True
+            result, _, errors = validate({'url': self.ids.url.text}, self.url_rules, return_info=True)  # True
 
             if result:
                 gen = self.__uri(url)
+        if not gen:
+            self.ids.url.background_color = (0.5, 0, 0, 0.3)  # if self.focus else (0, 0, 1, 1)
+
         self.tracker = "QRCode généré" if gen else "Saisir une URL valide"
+
     @property
     def card_rules(self):
         return {
