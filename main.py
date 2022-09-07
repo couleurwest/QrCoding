@@ -13,7 +13,7 @@ from kivy.core.window import Window
 from kivy.uix.screenmanager import Screen
 from validator import validate
 
-from work.toolbox import clean_space
+from work.toolbox import clean_space, path_build, dircurrent, makedirs
 from work.validation import UrlRule, PhoneRule
 
 kivy.require('2.1.0')
@@ -90,6 +90,12 @@ class QRCoder(Screen):
     phone_2 = StringProperty()
     tracker = StringProperty()
 
+    export = path_build(dircurrent(__file__), 'generation')
+
+    def __init__(self, **kw):
+        super(QRCoder, self).__init__(**kw)
+        makedirs(self.export)
+
     def __vcard(self, **kwargs):
         from segno import helpers
         card = UCard(**kwargs)
@@ -100,8 +106,8 @@ class QRCoder(Screen):
 
             if result:
                 qrcode = helpers.make_mecard(**card.mecard_data)
-                qrcode.save('qrcode_vcard.png', dark='#165868', scale=4)
-                self.tracker = " QR code generated!"
+                qrcode.save('generation/qrcode_vcard.png', dark='#165868', scale=4)
+                self.tracker = f"QRCode generated : {path_build(self.export, 'qrcode_vcard.png')}"
             else:
                 for field, err in errors.items():
                     self.ids[field].background_color = (0.5, 0, 0, 0.3)  # if self.focus else (0, 0, 1, 1)
@@ -144,9 +150,9 @@ class QRCoder(Screen):
         QRimg.paste(logo, pos)
 
         # save the QR code generated
-        QRimg.save('qrcode_uri.png')
+        QRimg.save('generation/qrcode_uri.png')
 
-        return True
+        return 'qrcode_uri.png'
 
     def reset_form(self):
         for field in ['name', 'surname', 'email', 'phone_1', 'phone_2', 'url']:
@@ -168,15 +174,17 @@ class QRCoder(Screen):
         self.reset_form()
         gen = False
         url = self.ids.url.text.lower()
+        text = "Saisir une URL valide"
         if url:
             result, _, errors = validate({'url': self.ids.url.text}, self.url_rules, return_info=True)  # True
 
             if result:
                 gen = self.__uri(url)
-        if not gen:
+        if gen:
+            text = f"QRCode généré : {path_build(self.export, gen)}"
             self.ids.url.background_color = (0.5, 0, 0, 0.3)  # if self.focus else (0, 0, 1, 1)
 
-        self.tracker = "QRCode généré" if gen else "Saisir une URL valide"
+        self.tracker = text
 
     @property
     def card_rules(self):

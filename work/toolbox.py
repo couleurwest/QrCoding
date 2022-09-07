@@ -1,3 +1,4 @@
+import os
 import re
 from string import punctuation
 
@@ -97,3 +98,22 @@ def clean_master(ch):
 
     """
     return clean_allspace(clean_coma(ch, True)).lower()
+
+
+def dircurrent(source=None):
+    """Répertoire pour le fichier en cours """
+    return os.path.dirname(os.path.realpath((source or __file__)))
+
+def makedirs(path):
+    """ Création du répertoire données
+
+    :param path: chemin du répertoire à créer
+    :rtype bool:
+
+    """
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+def path_build(directory ,ps_complement):
+    return os.path.abspath(os.path.join(directory, ps_complement))
