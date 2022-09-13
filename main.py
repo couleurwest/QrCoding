@@ -9,23 +9,37 @@ result = val.validate() # True
 import dataclasses
 
 import kivy
+from kivy import Config
 from kivy.core.window import Window
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.modalview import ModalView
 from kivy.uix.screenmanager import Screen
+from kivy.uix.textinput import TextInput
 from validator import validate
 
 from work.toolbox import clean_space, path_build, dircurrent, makedirs
-from work.validation import UrlRule, PhoneRule
+from work.validation import urlRule, phoneRule, emailRule
 
 kivy.require('2.1.0')
 
-from kivy.properties import StringProperty
+from kivy.properties import StringProperty, BooleanProperty
 from kivy.app import App
 
 from PIL import Image
 import qrcode
 
-Window.size = (800, 480)
-Window.borderless = 1
+Config.set('graphics', 'width', '1920')
+Config.set('graphics', 'height', '1080')
+
+window = Window
+
+
+class FormTInput(TextInput):
+    error = BooleanProperty(False)
+
+
+class BlocText(GridLayout):
+    pass
 
 
 @dataclasses.dataclass
@@ -41,15 +55,30 @@ class UCard:
     url: str = None
     corp: str = None
 
-
-
     @property
     def card_name(self):
         """Mise en forme identité"""
-        if self.name and self.surname.capitalize():
+        if self.name and self.surname:
             return self.name.upper() + ',' + self.surname.capitalize()
         else:
             return self.name or self.surname
+
+    @property
+    def fn(self):
+        """Mise en forme identité"""
+        if self.name and self.surname:
+            return self.name.upper() + ';' + self.surname.capitalize()
+        else:
+            return self.name or self.surname
+
+    @property
+    def dn(self):
+        """Mise en forme identité"""
+        if self.name and self.surname:
+            return self.surname.capitalize() + " " + self.name.upper()
+        else:
+            return self.name or self.surname
+
     @property
     def card_phone(self):
         return list(map(lambda d: clean_space(d), filter(lambda d: d, [self.phone_1, self.phone_1])))
@@ -63,6 +92,17 @@ class UCard:
             'url': self.url,
             'phone': self.card_phone,
             'name': self.card_name,
+        }
+        return {k: v for (k, v) in dcm.items() if v}
+
+    @property
+    def vcard_data(self):
+        """Donnes au foram MeCard"""
+        dcm = {
+            'email': self.email,
+            'org': self.corp,
+            'url': self.url,
+            'phone': self.card_phone,
         }
         return {k: v for (k, v) in dcm.items() if v}
 
@@ -105,12 +145,12 @@ class QRCoder(Screen):
             result, _, errors = validate(dcm, self.card_rules, return_info=True)  # True
 
             if result:
-                qrcode = helpers.make_mecard(**card.mecard_data)
+                qrcode = helpers.make_vcard(card.fn, card.dn, **card.vcard_data)
                 qrcode.save('generation/qrcode_vcard.png', dark='#165868', scale=4)
                 self.tracker = f"QRCode generated : {path_build(self.export, 'qrcode_vcard.png')}"
             else:
                 for field, err in errors.items():
-                    self.ids[field].background_color = (0.5, 0, 0, 0.3)  # if self.focus else (0, 0, 1, 1)
+                    self.ids[field].error = True
                 self.tracker = "Vérifiez le formulaire"
 
         else:
@@ -156,7 +196,7 @@ class QRCoder(Screen):
 
     def reset_form(self):
         for field in ['name', 'surname', 'email', 'phone_1', 'phone_2', 'url']:
-            self.ids[field].background_color = (1, 1, 1, 1)
+            self.ids[field].error = False
 
     def generate_vcard(self):
         self.reset_form()
@@ -164,10 +204,10 @@ class QRCoder(Screen):
         self.__vcard(
             name=ids.name.text,
             surname=ids.surname.text,
-            email=ids.email.text,
-            phone_1=ids.phone_1.text,
             corp=ids.corp.text,
+            phone_1=ids.phone_1.text,
             phone_2=ids.phone_2.text,
+            email=ids.email.text,
             url=ids.url.text)
 
     def generate_url(self):
@@ -183,23 +223,36 @@ class QRCoder(Screen):
         if gen:
             text = f"QRCode généré : {path_build(self.export, gen)}"
             self.ids.url.background_color = (0.5, 0, 0, 0.3)  # if self.focus else (0, 0, 1, 1)
-
+        else:
+            self.ids.url.error = True
         self.tracker = text
+
+    def open_info(self):
+        mv = ModalView(size_hint=(None, None), size=(480, 800), auto_dismiss=True)
+        content = BlocText()
+
+        with open("cgu", mode="r", encoding="utf-8") as f:
+            cgu = f.read()
+            content.ids.btxt.text = cgu
+            mv.add_widget(content)
+
+        # content.bind(on_press=mv.dismiss)
+
+        mv.open()
 
     @property
     def card_rules(self):
         return {
             "name": "required",
-            "surname": "required",
-            "email": "required|mail",
-            "url": UrlRule(),
-            "phone_1": PhoneRule(),
-            "phone_2": PhoneRule()
+            "email": emailRule(),
+            "url": urlRule(),
+            "phone_1": phoneRule(),
+            "phone_2": phoneRule()
         }
 
     @property
     def url_rules(self):
-        return {"url": UrlRule()}
+        return {"url": urlRule()}
 
     def closeapp(self):
         App.get_running_app().stop()
@@ -210,6 +263,7 @@ class QRCodeApp(App):
 
     def build(self):
         # return a Button() as a root widget
+
         return QRCoder()
 
 
