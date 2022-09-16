@@ -126,7 +126,8 @@ class QRForms(tkinter.Frame):
             self.load_value()
 
             qrcode = helpers.make_vcard(self.formcard.fn, self.formcard.dn, **self.formcard.vcard_data)
-            qrcode.save('generation/qrcode_vcard.png', dark=MeConfig.color_primary, scale=4)
+            src = toolbox.path_build(MeConfig.generation_path,"/qrcode_vcard.png" )
+            qrcode.save(src, dark=MeConfig.color_primary, scale=4)
             #self.tracker = f"QRCode generated : {path_build(self.export, 'qrcode_vcard.png')}"
 
             messagebox.showinfo("QRCoding: Generation", 'generation/qrcode_vcard.png')
@@ -140,8 +141,8 @@ class QRForms(tkinter.Frame):
             if  self.formcard.website:
                 import qrcode
 
-                logo_link = 'logo.png'
-                logo = Image.open(logo_link)
+                src = toolbox.path_build(MeConfig.projet_path, ".src/pics/qrcoding.png")
+                logo = Image.open(src)
 
                 basewidth = 100
 
@@ -172,7 +173,9 @@ class QRForms(tkinter.Frame):
                 QRimg.paste(logo, pos)
 
                 # save the QR code generated
-                QRimg.save('generation/qrcode_uri.png')
+                src = toolbox.path_build(MeConfig.generation_path, "qrcode_uri.png")
+
+                QRimg.save(src)
                 messagebox.showinfo("QRCoding: Generation", 'generation/qrcode_uri.png')
                 return
         messagebox.showinfo("QRCoding: Generation", 'URL non valide, vérifiez votre saisie')

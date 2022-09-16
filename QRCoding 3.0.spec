@@ -5,10 +5,10 @@ block_cipher = None
 
 
 a = Analysis(
-    ['app\\__init__.py'],
+    ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('app/.src/', '.src/'), ('app/logo.png', 'logo.png')],
+    datas=[('app/.src/', 'app/.src/'), ('app/logo.png', 'app/logo.png')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -41,4 +41,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='app\\.src\\pics\\logo.ico',
 )
